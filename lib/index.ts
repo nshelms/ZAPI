@@ -1,22 +1,22 @@
-import jwt = require('json-web-token');
-import request = require('request');
-import crypto = require('crypto');
+var jwt = require('json-web-token');
+var request = require('request');
+var crypto = require('crypto');
+var dotenv = require('dotenv');
 
 export class ZAPI {
 
   private BASE_URL: string = 'https://prod-api.zephyr4jiracloud.com/connect';
   private API_PATH: string = '/public/rest/api/1.0';
-  private BASE_API_URL: string = BASE_URL + API_PATH;
+  private BASE_API_URL: string = this.BASE_URL + this.API_PATH;
 
   constructor() {
-    var dotenv = requre('dotenv');
-    const reslt = dotenv.config();
+    const result = dotenv.config();
     if (result.error) {
       throw result.error;
     }
   }
 
-  public callZapiCloud(METHOD, API_URL, CONTENT_TYPE, ACCESS_KEY, SECRET_KEY, USER, BODY) {
+  public callZapiCloud(METHOD: string, API_URL: string, CONTENT_TYPE: string, ACCESS_KEY: string, SECRET_KEY: string, USER: string, BODY:string) {
       var hash = crypto.createHash('sha256');
       var iat = new Date().getTime();
       var exp = iat + 3600;
@@ -55,7 +55,7 @@ export class ZAPI {
           },
           'json': BODY
       };
-      var result = createPromiseCall(false, options);
+      var result = this.createPromiseCall(false, options);
       return result;
   }
 
