@@ -29,7 +29,7 @@
   "dependencies": {
     "dotenv": "^4.0.0",
     "json-web-token": "^2.1.3",
-    "request": "^2.81.0"
+    "request": "^2.83.0"
   },
   "devDependencies": {
     "@types/node": "^8.0.47",

@@ -1,1 +1,1 @@
-export * from './lib/zapi';
+export * from './lib/index';

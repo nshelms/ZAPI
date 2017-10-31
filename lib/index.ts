@@ -2,6 +2,7 @@ var jwt = require('json-web-token');
 var request = require('request');
 var crypto = require('crypto');
 var dotenv = require('dotenv');
+declare var __ZAPIcreds: string[];
 
 export class ZAPI {
 
@@ -16,7 +17,7 @@ export class ZAPI {
     }
   }
 
-  public callZapiCloud(METHOD: string, API_URL: string, CONTENT_TYPE: string, ACCESS_KEY: string, SECRET_KEY: string, USER: string, BODY:string) {
+  public callZapiCloud(METHOD: string, API_URL: string, CONTENT_TYPE: string, ACCESS_KEY: string, SECRET_KEY: string, USER: string, BODY:string): Object {
       var hash = crypto.createHash('sha256');
       var iat = new Date().getTime();
       var exp = iat + 3600;
@@ -38,7 +39,7 @@ export class ZAPI {
           'iat': iat,
           'exp': exp
       };
-      var token = jwt.encode(SECRET_KEY, payload, 'HS256', function (err, token) {
+      var token = jwt.encode(SECRET_KEY, payload, 'HS256', function (err: Error, token: string) {
           if (err) {
               console.error(err.name, err.message);
           }
@@ -59,7 +60,7 @@ export class ZAPI {
       return result;
   }
 
-  private createPromiseCall(debug, params) {
+  private createPromiseCall(debug: boolean, params: object) {
       return new Promise(function (resolve, reject) {
           request(params, function (error, response, body) {
               if (error)
@@ -73,8 +74,8 @@ export class ZAPI {
       }).catch(function (e) { console.log("An error had occured with the api call: \"" + e + "\""); });
   }
 
-  public getCycleIdFromCycleName(jiraProjectId, jiraProjectVersion, cycleName) {
-      return this.callZapiCloud.apply(void 0, ['GET', `${this.BASE_API_URL}/cycles/search?projectId=` + jiraProjectId + "&versionId=" + jiraProjectVersion, 'text/plain'].concat(__ZAPIcreds)).then(function (allCycles) {
+  public getCycleIdFromCycleName(jiraProjectId: string, jiraProjectVersion: string, cycleName: string): string {
+      return this.callZapiCloud.apply(void 0, ['GET', `${this.BASE_API_URL}/cycles/search?projectId=` + jiraProjectId + "&versionId=" + jiraProjectVersion, 'text/plain'].concat(__ZAPIcreds)).then(function (allCycles: any) {
           var currentCycleId = findCycleByName(JSON.parse(allCycles), cycleName);
           if (currentCycleId) {
               return { projectId: jiraProjectId, versionId: jiraProjectVersion, id: currentCycleId };
@@ -82,7 +83,7 @@ export class ZAPI {
           else {
               return null;
           }
-          function findCycleByName(allCycles, name) {
+          function findCycleByName(allCycles, name: string) {
               var id = false;
               allCycles.forEach(function (item) {
                   item.name === name ? id = item.id : id = false;
@@ -92,18 +93,18 @@ export class ZAPI {
       });
   }
 
-  public getAllCycles(jiraProjectId, jiraProjectVersion) {
+  public getAllCycles(jiraProjectId: string, jiraProjectVersion: string): Object[] {
       return this.callZapiCloud.apply(void 0, ['GET', `${this.BASE_API_URL}/cycles/search?expand=executionSummaries&projectId=` + jiraProjectId + "&versionId=" + jiraProjectVersion, 'text/plain'].concat(__ZAPIcreds)).then(function (d) { return JSON.parse(d).filter(function (a) { return a.name != 'Ad hoc'; }); })
-          .then(function (allCycles) {
-          var allCyclesResult = [];
+          .then(function (allCycles: any) {
+          var allCyclesResult: Object[] = [];
           allCycles.forEach(function (a) {
-              var buildCycleObject = {};
+              var buildCycleObject: any = {};
               buildCycleObject.name = a.name;
               buildCycleObject.id = a.id;
               buildCycleObject.totalExecuted = a.totalExecuted;
               buildCycleObject.totalExecutions = a.totalExecutions;
               buildCycleObject.execSummaries = (function () {
-                  var resultArray = [];
+                  var resultArray: Object[] = [];
                   a.executionSummaries.forEach(function (a) {
                       resultArray.push({
                           status: a.executionStatusName,
@@ -118,19 +119,19 @@ export class ZAPI {
       });
   }
 
-  public zqlSearch(query: string, fields?: object) {
-      return this.callZapiCloud.apply(void 0, ['POST', `${this.BASE_API_URL}/zql/search?`, 'application/json'].concat(__ZAPIcreds, [{ 'zqlQuery': "" + query }])).then(function (searchResults) {
+  public zqlSearch(query: string, fields?: Object): Object {
+      return this.callZapiCloud.apply(void 0, ['POST', `${this.BASE_API_URL}/zql/search?`, 'application/json'].concat(__ZAPIcreds, [JSON.stringify({ 'zqlQuery': "" + query })])).then(function (searchResults: any) {
           var result = {
               totalTests: searchResults.totalCount,
-              tests: []
+              tests: [] as any[]
           };
-          searchResults.searchObjectList.forEach(function (a) {
+          searchResults.searchObjectList.forEach(function (a: any) {
               result.tests.push(a);
           });
           return result;
       });
   }
-  public createNewCycle(body, cycleId) {
+  public createNewCycle(body: string, cycleId: string): Object {
       if (cycleId) {
           return this.callZapiCloud.apply(void 0, ['POST', `${this.BASE_API_URL}/cycle?clonedCycleId=` + cycleId, 'application/json'].concat(__ZAPIcreds, [body]));
       }
@@ -139,20 +140,20 @@ export class ZAPI {
       }
   }
 
-  public createExecution(cycleId, projectId, versionId, issueId, testStatus, assignee) {
+  public createExecution(cycleId: string, projectId: string, versionId: string, issueId: string, testStatus: string, assignee: string): Object {
       var body = { 'status': { 'id': testStatus }, 'projectId': projectId, 'issueId': issueId, 'cycleId': cycleId, 'versionId': versionId, 'assigneeType': 'assignee', 'assignee': assignee };
-      return this.callZapiCloud.apply(void 0, ['POST', `${this.BASE_API_URL}/execution`, 'application/json'].concat(__ZAPIcreds, [body])).then(function (createExecution) {
-          return this.callZapiCloud.apply(void 0, ['PUT', `${this.BASE_API_URL}/execution/` + createExecution.execution.id, 'application/json'].concat(__ZAPIcreds, [{ 'status': { 'id': testStatus }, 'projectId': projectId, 'issueId': issueId, 'cycleId': cycleId, 'versionId': versionId }]));
+      return this.callZapiCloud.apply(void 0, ['POST', `${this.BASE_API_URL}/execution`, 'application/json'].concat(__ZAPIcreds, [JSON.stringify(body)])).then(function (createExecution: any) {
+          return this.callZapiCloud.apply(void 0, ['PUT', `${this.BASE_API_URL}/execution/` + createExecution.execution.id, 'application/json'].concat(__ZAPIcreds, [JSON.stringify({ 'status': { 'id': testStatus }, 'projectId': projectId, 'issueId': issueId, 'cycleId': cycleId, 'versionId': versionId })]));
       });
   }
 
   public getExecutionStatuses() {
-      return this.callZapiCloud.apply(void 0, ['GET', `${this.BASE_API_URL}/execution/statuses`, 'application/json'].concat(__ZAPIcreds)).then(function (getStatuses) { return JSON.parse(getStatuses).forEach(function (a) { return console.log(a.id + " " + a.name + " " + a.description); }); });
+      return this.callZapiCloud.apply(void 0, ['GET', `${this.BASE_API_URL}/execution/statuses`, 'application/json'].concat(__ZAPIcreds)).then(function (getStatuses: any) { return JSON.parse(getStatuses).forEach(function (a) { return console.log(a.id + " " + a.name + " " + a.description); }); });
   }
 
-  public getExecutionInfo(issueId, projectId, cycleId, executionId) {
+  public getExecutionInfo(issueId: string, projectId: string, cycleId: string, executionId: string) {
       return this.callZapiCloud.apply(void 0, ['GET', `${this.BASE_API_URL}/stepresult/search?executionId=` + executionId + "&issueId=" + issueId, 'application/text'].concat(__ZAPIcreds)).then(function (getStepResults) {
-          var stepIds = [];
+          var stepIds: Object[] = [];
           JSON.parse(getStepResults).stepResults.forEach(function (a) {
               stepIds.push({ id: a.id, status: a.status.description });
           });
@@ -161,17 +162,17 @@ export class ZAPI {
       });
   }
 
-  public stepResultUpdate(stepResultId, issueId, executionId, status) {
+  public stepResultUpdate(stepResultId: string, issueId: string, executionId: string, status: string) {
       var testStepData = { 'status': { 'id': status }, 'issueId': issueId, 'stepId': stepResultId, 'executionId': executionId };
-      return this.callZapiCloud.apply(void 0, ['PUT', `${this.BASE_API_URL}/stepresult/` + stepResultId, 'application/json'].concat(__ZAPIcreds, [testStepData]));
+      return this.callZapiCloud.apply(void 0, ['PUT', `${this.BASE_API_URL}/stepresult/` + stepResultId, 'application/json'].concat(__ZAPIcreds, [JSON.stringify(testStepData)]));
   }
 
-  public createNewTestStep(testStep, testData, expectedResult, testId, projectId) {
+  public createNewTestStep(testStep: string, testData: string, expectedResult: string, testId: string, projectId: string) {
       var testStepData = { "step": testStep, "data": testData, "result": expectedResult };
-      return this.callZapiCloud.apply(void 0, ['POST', `${this.BASE_API_URL}/teststep/` + testId + "?projectId=" + projectId, 'application/json'].concat(__ZAPIcreds, [testStepData]));
+      return this.callZapiCloud.apply(void 0, ['POST', `${this.BASE_API_URL}/teststep/` + testId + "?projectId=" + projectId, 'application/json'].concat(__ZAPIcreds, [JSON.stringify(testStepData)]));
   }
 
-  public testStepUpdate(testStep, testData, expectedResult, stepNum, testId, projectId) {
+  public testStepUpdate(testStep: string, testData: string, expectedResult: string, stepNum: string, testId: string, projectId: string) {
       var testStepData = {
           'orderId': stepNum,
           'issueId': testId,
@@ -180,10 +181,10 @@ export class ZAPI {
           'result': expectedResult,
           'createdBy': 'admin'
       };
-      return this.callZapiCloud.apply(void 0, ['POST', `${this.BASE_API_URL}/teststep/` + testId + "?projectId=" + projectId, 'application/json'].concat(__ZAPIcreds, [testStepData]));
+      return this.callZapiCloud.apply(void 0, ['POST', `${this.BASE_API_URL}/teststep/` + testId + "?projectId=" + projectId, 'application/json'].concat(__ZAPIcreds, [JSON.stringify(testStepData)]));
   }
 
-  public deleteAllTestSteps(testId, projectId) {
+  public deleteAllTestSteps(testId: string, projectId: string) {
       return this.callZapiCloud.apply(void 0, ['GET', `${this.BASE_API_URL}/teststep/` + testId + "?projectId=" + projectId, 'application/json'].concat(__ZAPIcreds)).then(function (testSteps) {
           var stepsArray = JSON.parse(testSteps);
           (function deleteStep() {
@@ -212,11 +213,11 @@ export class ZAPI {
       return this.callZapiCloud.apply(void 0, ['GET', `${this.BASE_API_URL}/config/generalinformation`, 'application/text'].concat(__ZAPIcreds));
   }
 
-  public getCyclesIssueIds(cycleId, versionId, projectId) {
+  public getCyclesIssueIds(cycleId: string, versionId: string, projectId: string) {
       return this.callZapiCloud.apply(void 0, ['GET', `${this.BASE_API_URL}/cycle/` + cycleId + "?expand=executionSummaries&projectId=" + projectId + "&versionId=" + versionId, 'text/plain'].concat(__ZAPIcreds));
   }
 
-  public getTestSteps(issueId, projectId) {
+  public getTestSteps(issueId: string, projectId: string) {
       return this.callZapiCloud.apply(void 0, ['GET', `${this.BASE_API_URL}/teststep/` + issueId + "?projectId=" + projectId, 'application/json'].concat(__ZAPIcreds)).then(function (step) { return JSON.parse(step); });
   }
 
